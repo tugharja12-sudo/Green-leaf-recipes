@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Green Leaf Recipes</title>
+<style>
+  body{margin:0;font-family:Georgia,serif;background:#f7f5ef;color:#2b2b2b}
+  header{background:#3f6b3a;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
+  #logo{font-size:26px;cursor:pointer;user-select:none}
+  nav a{color:#e6f0e2;margin-left:18px;text-decoration:none;font-size:15px}
+  main{max-width:800px;margin:24px auto;padding:0 20px}
+  .card{background:#fff;border-radius:8px;padding:18px 22px;margin-bottom:18px;box-shadow:0 1px 4px #0001}
+  h2{margin-top:0;color:#3f6b3a}
+  footer{text-align:center;color:#888;font-size:13px;padding:20px}
+  #chat{display:none;position:fixed;inset:0;background:#fff;z-index:10;flex-direction:column;font-family:system-ui,sans-serif}
+  #login{margin:auto;text-align:center}
+  #login input,#bar input{padding:10px;font-size:16px;border:1px solid #ccc;border-radius:6px}
+  button{padding:10px 16px;font-size:16px;border:0;border-radius:6px;background:#3f6b3a;color:#fff;cursor:pointer}
+  #room{display:none;flex-direction:column;height:100%}
+  #msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:6px}
+  .m{max-width:75%;padding:8px 12px;border-radius:12px;background:#eee;word-wrap:break-word}
+  .m.me{align-self:flex-end;background:#cfe8c9}
+  .m small{display:block;color:#666;font-size:11px}
+  #bar{display:flex;gap:8px;padding:10px;border-top:1px solid #ddd}
+  #bar input{flex:1}
+  #err{color:#b00;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <span id="logo" title="Green Leaf">🍃</span>
+  <strong>Green Leaf Recipes</strong>
+  <nav><a href="#">Home</a><a href="#">Recipes</a><a href="#">About</a></nav>
+</header>
+<main>
+  <div class="card"><h2>Easy Vegetable Pulao</h2>
+  <p>A simple one-pot rice dish with seasonal vegetables and whole spices. Ready in 30 minutes and perfect for a weekday dinner.</p></div>
+  <div class="card"><h2>Masala Chai Tips</h2>
+  <p>Crush your ginger and cardamom fresh, simmer the tea leaves in water before adding milk, and sweeten at the end.</p></div>
+  <div class="card"><h2>Weekend Baking: Banana Bread</h2>
+  <p>Use very ripe bananas, don't overmix the batter, and let the loaf cool fully before slicing.</p></div>
+</main>
+<footer>© 2026 Green Leaf Recipes</footer>
+
+<div id="chat">
+  <div id="login">
+    <h3>Enter passphrase</h3>
+    <input id="pass" type="password" placeholder="Passphrase">
+    <input id="nick" placeholder="Your nickname" style="margin-left:6px">
+    <button id="go">Enter</button>
+    <div id="err"></div>
+  </div>
+  <div id="room">
+    <div id="msgs"></div>
+    <div id="bar"><input id="text" placeholder="Type a message..." autocomplete="off"><button id="send">Send</button></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ====== STEP 1: PASTE YOUR FIREBASE CONFIG HERE ======
+const firebaseConfig = {
+  apiKey: "PASTE_HERE",
+  authDomain: "PASTE_HERE",
+  databaseURL: "PASTE_HERE",
+  projectId: "PASTE_HERE",
+  appId: "PASTE_HERE"
+};
+// =====================================================
+
+const $ = id => document.getElementById(id);
+let taps = 0, timer, ref, nick, roomPath;
+
+// Secret trigger: click the leaf 5 times quickly
+$("logo").onclick = () => {
+  taps++; clearTimeout(timer);
+  timer = setTimeout(() => taps = 0, 1500);
+  if (taps >= 5) { taps = 0; $("chat").style.display = "flex"; $("pass").focus(); }
+};
+
+// Panic key: Esc hides everything
+function hideChat(){
+  $("chat").style.display = "none";
+  $("room").style.display = "none";
+  $("login").style.display = "block";
+  $("msgs").innerHTML = ""; $("pass").value = "";
+  if (ref) { ref.off(); ref = null; }
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") hideChat(); });
+
+async function sha(s){
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,"0")).join("");
+}
+
+$("go").onclick = async () => {
+  const pass = $("pass").value.trim(); nick = $("nick").value.trim() || "Me";
+  if (pass.length < 6) { $("err").textContent = "Use a passphrase of 6+ characters."; return; }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const room = await sha(pass);            // the passphrase decides which room you land in
+    roomPath = "rooms/" + room; ref = firebase.database().ref(roomPath).limitToLast(100);
+    $("login").style.display = "none"; $("room").style.display = "flex";
+    ref.on("child_added", snap => {
+      const d = snap.val(), div = document.createElement("div");
+      div.className = "m" + (d.n === nick ? " me" : "");
+      const s = document.createElement("small"); s.textContent = d.n;
+      div.append(s, document.createTextNode(d.t));
+      $("msgs").appendChild(div); $("msgs").scrollTop = 1e9;
+    });
+  } catch (e) { $("err").textContent = "Could not connect. Check your Firebase config."; }
+};
+
+function send(){
+  const t = $("text").value.trim(); if (!t || !ref) return;
+  firebase.database().ref(roomPath).push({n: nick, t, ts: Date.now()});
+  $("text").value = "";
+}
+$("send").onclick = send;
+$("text").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+</script>
+</body>
+</html>
