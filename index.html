@@ -60,27 +60,26 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-// ====== STEP 1: PASTE YOUR FIREBASE CONFIG HERE ======
 const firebaseConfig = {
-  apiKey: "PASTE_HERE",
-  authDomain: "PASTE_HERE",
-  databaseURL: "PASTE_HERE",
-  projectId: "PASTE_HERE",
-  appId: "PASTE_HERE"
+  apiKey: "AIzaSyBuRGrlo438PpjPvECGeWbjCrh1LeRO1uc",
+  authDomain: "green-leaf-recipes.firebaseapp.com",
+  databaseURL: "https://green-leaf-recipes-default-rtdb.firebaseio.com",
+  projectId: "green-leaf-recipes",
+  storageBucket: "green-leaf-recipes.firebasestorage.app",
+  messagingSenderId: "544073679880",
+  appId: "1:544073679880:web:42845c62299e55963d7dbd",
+  measurementId: "G-NB6VPMS4HL"
 };
-// =====================================================
 
 const $ = id => document.getElementById(id);
 let taps = 0, timer, ref, nick, roomPath;
 
-// Secret trigger: click the leaf 5 times quickly
 $("logo").onclick = () => {
   taps++; clearTimeout(timer);
   timer = setTimeout(() => taps = 0, 1500);
   if (taps >= 5) { taps = 0; $("chat").style.display = "flex"; $("pass").focus(); }
 };
 
-// Panic key: Esc hides everything
 function hideChat(){
   $("chat").style.display = "none";
   $("room").style.display = "none";
@@ -100,7 +99,7 @@ $("go").onclick = async () => {
   if (pass.length < 6) { $("err").textContent = "Use a passphrase of 6+ characters."; return; }
   try {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const room = await sha(pass);            // the passphrase decides which room you land in
+    const room = await sha(pass);
     roomPath = "rooms/" + room; ref = firebase.database().ref(roomPath).limitToLast(100);
     $("login").style.display = "none"; $("room").style.display = "flex";
     ref.on("child_added", snap => {
